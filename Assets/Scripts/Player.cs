@@ -13,8 +13,14 @@ public class Player : NetworkBehaviour {
     void Start() {
         _transform = GetComponent<Transform>();
         _rigidbody = GetComponent<Rigidbody>();
+        
+        // assign a random color, not synced or anything but just enough to tell them apart on each local machine
+        GetComponentInChildren<MeshRenderer>().material.SetColor("_EmissionColor", Random.ColorHSV());
+
+        // non-local initialisation
         if (!isLocalPlayer) {
             _rigidbody.isKinematic = true;
+            GetComponentInChildren<Camera>().gameObject.SetActive(false);
         }
 
         GetComponentInChildren<MeshRenderer>().material.SetColor("_EmissionColor", Random.ColorHSV());
