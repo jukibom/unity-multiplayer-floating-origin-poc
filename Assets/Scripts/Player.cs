@@ -20,11 +20,17 @@ public class Player : NetworkBehaviour {
 
         // non-local initialisation
         if (!isLocalPlayer) {
+            // TODO: a better solution for this? 
+            // Effectively make the non-local player a static object from a physics perspective
             _rigidbody.isKinematic = true;
+            
+            // Disable the non-local camera (is there a better way to handle this?)
             GetComponentInChildren<Camera>().gameObject.SetActive(false);
+            
+            // Shift the player to the local world such that floating origin includes it
+            transform.parent = GameObject.Find("World").transform;
         }
 
-        GetComponentInChildren<MeshRenderer>().material.SetColor("_EmissionColor", Random.ColorHSV());
     }
     // Update is called once per frame
     void Update()
