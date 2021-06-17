@@ -7,6 +7,7 @@ using UnityEngine;
 public class Player : NetworkBehaviour {
     private Transform _transform;
     private Rigidbody _rigidbody;
+    private FloatingOrigin _floatingOrigin;
 
     [SerializeField] private float thrust = 100;
 
@@ -30,6 +31,13 @@ public class Player : NetworkBehaviour {
     {
         // only apply to the local client
         if (isLocalPlayer) {
+            
+            // poll for floating origin component
+            // TODO: is this necessary here? It definitely feels wrong
+            if (!_floatingOrigin) {
+                _floatingOrigin = FindObjectOfType<FloatingOrigin>();
+            }
+            
             // very basic movement mechanics
             if (Input.GetKey(KeyCode.W)) {
                 _rigidbody.AddForce(0, 0, thrust);
@@ -48,7 +56,8 @@ public class Player : NetworkBehaviour {
             _transform.localPosition = new Vector3(_transform.localPosition.x, 0, _transform.localPosition.z);
             _transform.localRotation = Quaternion.identity;
 
-            CmdSetPosition(transform.position, transform.rotation);
+            var position = _floatingOrigin ? _floatingOrigin.FocalObjectPosition : transform.localPosition;
+            CmdSetPosition(position, transform.rotation);
         }
     }
 
@@ -60,8 +69,8 @@ public class Player : NetworkBehaviour {
     [ClientRpc]
     void RpcUpdate(Vector3 position, Quaternion rotation) {
         if (!isLocalPlayer) {
-            transform.position = position;
-            transform.rotation = rotation;
+            transform.localPosition = position;
+            transform.localRotation = rotation;
         }
     }
 }

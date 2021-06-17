@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Mirror;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -29,7 +30,16 @@ public class FloatingOrigin : MonoBehaviour {
     }
 
     void Update() {
-        if (_worldTransform && focalTransform.position.magnitude > correctionDistance) {
+        // query for local player
+        if (!focalTransform) {
+            foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
+                if (player.isLocalPlayer) {
+                    focalTransform = player.transform;
+                }
+            }
+        }
+        // if we have one, perform the floating origin fix
+        else if (_worldTransform && focalTransform.position.magnitude > correctionDistance) {
             _worldTransform.position -= focalTransform.position;
             focalTransform.position = Vector3.zero;
         }
