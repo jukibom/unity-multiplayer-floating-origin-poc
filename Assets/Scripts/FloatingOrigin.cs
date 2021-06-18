@@ -1,10 +1,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Mirror;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class FloatingOrigin : MonoBehaviour {
 
@@ -41,9 +39,19 @@ public class FloatingOrigin : MonoBehaviour {
         }
         // if we have one, perform the floating origin fix
         else if (_worldTransform && focalTransform.position.magnitude > correctionDistance) {
+            // update the world transform to the opposite of our focal object (the local player)
             _worldTransform.position -= focalTransform.position;
+            
+            // update all non-local players too (positional updates from clients will do this but there may be a delay)
+            // TODO: a better system for prefetching theses, this is slow but adequate for demonstration
+            foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
+                if (!player.isLocalPlayer) {
+                    player.transform.position -= focalTransform.position;
+                }
+            }
+            
+            // reset focal object (local player) to 0,0,0
             focalTransform.position = Vector3.zero;
         }
     }
-
 }
