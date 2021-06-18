@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using Mirror;
 using UnityEngine;
 
@@ -7,7 +8,9 @@ using UnityEngine;
 public class Player : NetworkBehaviour {
     private Transform _transform;
     private Rigidbody _rigidbody;
+    
     private FloatingOrigin _floatingOrigin;
+    public Vector3 Origin => _floatingOrigin ? _floatingOrigin.Origin : Vector3.zero;
 
     [SerializeField] private float thrust = 100;
 
@@ -26,24 +29,21 @@ public class Player : NetworkBehaviour {
             
             // Disable the non-local camera (is there a better way to handle this?)
             GetComponentInChildren<Camera>().gameObject.SetActive(false);
-            
-            // Shift the player to the local world such that floating origin includes it
-            transform.parent = GameObject.Find("World").transform;
         }
 
     }
-    // Update is called once per frame
+
     void Update()
     {
+        // poll for floating origin component
+        // TODO: is this necessary here? It definitely feels wrong
+        if (!_floatingOrigin) {
+            _floatingOrigin = FindObjectOfType<FloatingOrigin>();
+        }
+        
         // only apply to the local client
         if (isLocalPlayer) {
-            
-            // poll for floating origin component
-            // TODO: is this necessary here? It definitely feels wrong
-            if (!_floatingOrigin) {
-                _floatingOrigin = FindObjectOfType<FloatingOrigin>();
-            }
-            
+
             // very basic movement mechanics
             if (Input.GetKey(KeyCode.W)) {
                 _rigidbody.AddForce(0, 0, thrust);
@@ -62,20 +62,29 @@ public class Player : NetworkBehaviour {
             _transform.localPosition = new Vector3(_transform.localPosition.x, 0, _transform.localPosition.z);
             _transform.localRotation = Quaternion.identity;
 
-            var position = _floatingOrigin ? _floatingOrigin.FocalObjectPosition : transform.localPosition;
-            CmdSetPosition(position, transform.rotation);
+            CmdSetPosition(Origin, transform.localPosition, transform.rotation);
         }
     }
 
     [Command]
-    void CmdSetPosition(Vector3 position, Quaternion rotation) {
-        RpcUpdate(position, rotation);
+    void CmdSetPosition(Vector3 origin, Vector3 position, Quaternion rotation) {
+        RpcUpdate(origin, position, rotation);
     }
 
     [ClientRpc]
-    void RpcUpdate(Vector3 position, Quaternion rotation) {
+    void RpcUpdate(Vector3 remoteOrigin, Vector3 position, Quaternion rotation) {
         if (!isLocalPlayer) {
-            transform.localPosition = position;
+            // Calculate the local difference to position based on the local clients' floating origin.
+            // If these values are gigantic, the doesn't really matter as they only update at fixed distances.
+            // We'll lose precision here but we add our position on top after-the-fact, so we always have
+            // local-level precision.
+            var offset = remoteOrigin - Origin;
+            var localPosition = offset + position;
+            
+            // Debug.Log("remote player position: remoteOrigin: " + remoteOrigin + ", localOrigin: " + Origin +
+            //           ", offset: " + offset + ", position: " + position + ", calculated: " + localPosition);
+            
+            transform.localPosition = localPosition;
             transform.localRotation = rotation;
         }
     }
