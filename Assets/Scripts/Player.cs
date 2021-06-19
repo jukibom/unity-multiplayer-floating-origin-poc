@@ -1,16 +1,17 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using Mirror;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Player : NetworkBehaviour {
     private Transform _transform;
     private Rigidbody _rigidbody;
     
-    private FloatingOrigin _floatingOrigin;
-    public Vector3 Origin => _floatingOrigin ? _floatingOrigin.Origin : Vector3.zero;
+    public Vector3 Origin => FloatingOrigin.instance.Origin;
 
     [SerializeField] private float thrust = 100;
 
@@ -30,17 +31,24 @@ public class Player : NetworkBehaviour {
             // Disable the non-local camera (is there a better way to handle this?)
             GetComponentInChildren<Camera>().gameObject.SetActive(false);
         }
+    }
 
+    public override void OnStartLocalPlayer() {
+        // register self as the focal object
+        FloatingOrigin.instance.focalTransform = transform;
+    }
+    
+    void OnEnable() {
+        // perform positional correction like anything else in the world
+        FloatingOrigin.OnFloatingOriginCorrection += PositionCorrection;
+    }
+
+    private void OnDisable() {
+        FloatingOrigin.OnFloatingOriginCorrection -= PositionCorrection;
     }
 
     void Update()
     {
-        // poll for floating origin component
-        // TODO: is this necessary here? It definitely feels wrong
-        if (!_floatingOrigin) {
-            _floatingOrigin = FindObjectOfType<FloatingOrigin>();
-        }
-        
         // only apply to the local client
         if (isLocalPlayer) {
 
@@ -86,6 +94,12 @@ public class Player : NetworkBehaviour {
             
             transform.localPosition = localPosition;
             transform.localRotation = rotation;
+        }
+    }
+
+    void PositionCorrection(Vector3 offset) {
+        if (!isLocalPlayer) {
+            transform.position -= offset;
         }
     }
 }

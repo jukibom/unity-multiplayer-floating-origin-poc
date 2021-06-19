@@ -6,50 +6,49 @@ using UnityEngine;
 
 public class FloatingOrigin : MonoBehaviour {
 
-    [SerializeField] public Transform focalTransform; // this should be the client player
-
-    // Distance required to perform a correction. If 0, will occur every frame.
-    [SerializeField] public float correctionDistance = 0.0f; 
+    public static FloatingOrigin instance { get; private set; }
+    public delegate void FloatingOriginCorrectionAction(Vector3 offset);
+    public static event FloatingOriginCorrectionAction OnFloatingOriginCorrection;
     
-    // The target world transform to manipulate
-    private Transform _worldTransform;
+    // The object to track - this should be the local client player
+    [SerializeField] public Transform focalTransform; 
+    
+    // Distance required to perform a correction. If 0, will occur every frame.
+    [SerializeField] public float correctionDistance = 100.0f;
 
-    public Vector3 Origin => _worldTransform.position * -1;
+    public Vector3 Origin { get; private set; }
     public Vector3 FocalObjectPosition => focalTransform.position + Origin;
 
-    void OnEnable() {
-        _worldTransform = GameObject.Find("World")?.transform;
-        if (!_worldTransform) {
-            Debug.LogWarning("Floating Origin failed to find target World! Is one loaded?");
+    void Awake() {
+        // singleton shenanigans
+        if (instance == null) {
+            instance = this;
         }
-    }
+        else {
+            Destroy(gameObject);
+            return;
+        }
 
-    private void OnDisable() {
-        _worldTransform = null;
+        DontDestroyOnLoad(gameObject);
     }
 
     void Update() {
-        // query for local player
-        if (!focalTransform) {
-            foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
-                if (player.isLocalPlayer) {
-                    focalTransform = player.transform;
-                }
-            }
-        }
-        // if we have one, perform the floating origin fix
-        else if (_worldTransform && focalTransform.position.magnitude > correctionDistance) {
-            // update the world transform to the opposite of our focal object (the local player)
-            _worldTransform.position -= focalTransform.position;
+        
+        // if we have a focal object, perform the floating origin fix
+        if (focalTransform && focalTransform.position.magnitude > correctionDistance) {
+            var focalPosition = focalTransform.position;
+            Origin += focalPosition;
             
             // update all non-local players too (positional updates from clients will do this but there may be a delay)
             // TODO: a better system for prefetching theses, this is slow but adequate for demonstration
-            foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
-                if (!player.isLocalPlayer) {
-                    player.transform.position -= focalTransform.position;
-                }
-            }
-            
+            // foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
+            //     if (!player.isLocalPlayer) {
+            //         player.transform.position -= focalTransform.position;
+            //     }
+            // }
+
+            OnFloatingOriginCorrection?.Invoke(focalPosition);
+
             // reset focal object (local player) to 0,0,0
             focalTransform.position = Vector3.zero;
         }
