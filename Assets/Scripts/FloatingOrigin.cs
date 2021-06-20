@@ -1,7 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using Mirror;
 using UnityEngine;
 
 public class FloatingOrigin : MonoBehaviour {
@@ -38,14 +34,6 @@ public class FloatingOrigin : MonoBehaviour {
         if (focalTransform && focalTransform.position.magnitude > correctionDistance) {
             var focalPosition = focalTransform.position;
             Origin += focalPosition;
-            
-            // update all non-local players too (positional updates from clients will do this but there may be a delay)
-            // TODO: a better system for prefetching theses, this is slow but adequate for demonstration
-            // foreach (var player in FindObjectsOfType<Player>() as NetworkBehaviour[]) {
-            //     if (!player.isLocalPlayer) {
-            //         player.transform.position -= focalTransform.position;
-            //     }
-            // }
 
             OnFloatingOriginCorrection?.Invoke(focalPosition);
 
